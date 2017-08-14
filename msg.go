@@ -1,35 +1,34 @@
-
 package rtmp
 
 import (
-	"io"
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 )
 
 var (
-	MSG_CHUNK_SIZE         = 1
-	MSG_ABORT              = 2
-	MSG_ACK                = 3
-	MSG_USER               = 4
-	MSG_ACK_SIZE           = 5
-	MSG_BANDWIDTH          = 6
-	MSG_EDGE               = 7
-	MSG_AUDIO              = 8
-	MSG_VIDEO              = 9
-	MSG_AMF3_META          = 15
-	MSG_AMF3_SHARED        = 16
-	MSG_AMF3_CMD           = 17
-	MSG_AMF_META           = 18
-	MSG_AMF_SHARED         = 19
-	MSG_AMF_CMD            = 20
-	MSG_AGGREGATE          = 22
-	MSG_MAX                = 22
+	MSG_CHUNK_SIZE  = 1
+	MSG_ABORT       = 2
+	MSG_ACK         = 3
+	MSG_USER        = 4
+	MSG_ACK_SIZE    = 5
+	MSG_BANDWIDTH   = 6
+	MSG_EDGE        = 7
+	MSG_AUDIO       = 8
+	MSG_VIDEO       = 9
+	MSG_AMF3_META   = 15
+	MSG_AMF3_SHARED = 16
+	MSG_AMF3_CMD    = 17
+	MSG_AMF_META    = 18
+	MSG_AMF_SHARED  = 19
+	MSG_AMF_CMD     = 20
+	MSG_AGGREGATE   = 22
+	MSG_MAX         = 22
 )
 
 var (
-	MsgTypeStr = []string {
+	MsgTypeStr = []string{
 		"?",
 		"CHUNK_SIZE", "ABORT", "ACK",
 		"USER", "ACK_SIZE", "BANDWIDTH", "EDGE",
@@ -41,19 +40,19 @@ var (
 )
 
 type chunkHeader struct {
-	typeid int
-	mlen int
-	csid int
-	cfmt int
-	ts int
+	typeid  int
+	mlen    int
+	csid    int
+	cfmt    int
+	ts      int
 	tsdelta int
-	strid int
+	strid   int
 }
 
-func readChunkHeader (r io.Reader) (m chunkHeader) {
+func readChunkHeader(r io.Reader) (m chunkHeader) {
 	i := ReadInt(r, 1)
-	m.cfmt = (i>>6)&3;
-	m.csid = i&0x3f;
+	m.cfmt = (i >> 6) & 3
+	m.csid = i & 0x3f
 
 	if m.csid == 0 {
 		j := ReadInt(r, 1)
@@ -95,39 +94,38 @@ func readChunkHeader (r io.Reader) (m chunkHeader) {
 }
 
 const (
-	UNKNOWN = 0
-	PLAYER = 1
+	UNKNOWN   = 0
+	PLAYER    = 1
 	PUBLISHER = 2
 )
 
 const (
 	WAIT_EXTRA = 0
-	WAIT_DATA = 1
+	WAIT_DATA  = 1
 )
 
-
 type MsgStream struct {
-	r stream
-	Msg map[int]*Msg
+	r        stream
+	Msg      map[int]*Msg
 	vts, ats int
 
-	meta AMFObj
-	id string
-	role int
-	stat int
-	app string
-	W,H int
-	strid int
+	meta           AMFObj
+	id             string
+	role           int
+	stat           int
+	app            string
+	W, H           int
+	strid          int
 	extraA, extraV []byte
-	que chan *Msg
-	l *log.Logger
+	que            chan *Msg
+	l              *log.Logger
 }
 
 type Msg struct {
 	chunkHeader
 	data *bytes.Buffer
 
-	key bool
+	key   bool
 	curts int
 }
 
@@ -148,9 +146,9 @@ var (
 func NewMsgStream(r io.ReadWriteCloser) *MsgStream {
 	mrseq++
 	return &MsgStream{
-		r:stream{r},
-		Msg:map[int]*Msg{},
-		id:fmt.Sprintf("#%d", mrseq),
+		r:   stream{r},
+		Msg: map[int]*Msg{},
+		id:  fmt.Sprintf("#%d", mrseq),
 	}
 }
 
@@ -168,22 +166,22 @@ func (r *MsgStream) WriteMsg(cfmt, csid, typeid, strid, ts int, data []byte) {
 	for i := 0; start < len(data); i++ {
 		if i == 0 {
 			if cfmt == 0 {
-				WriteInt(&b, csid, 1)  // fmt=0 csid
-				WriteInt(&b, ts, 3) // ts
+				WriteInt(&b, csid, 1)      // fmt=0 csid
+				WriteInt(&b, ts, 3)        // ts
 				WriteInt(&b, len(data), 3) // message length
-				WriteInt(&b, typeid, 1) // message type id
-				WriteIntLE(&b, strid, 4) // message stream id
+				WriteInt(&b, typeid, 1)    // message type id
+				WriteIntLE(&b, strid, 4)   // message stream id
 			} else {
-				WriteInt(&b, 0x1<<6 + csid, 1)  // fmt=1 csid
-				WriteInt(&b, ts, 3) // tsdelta
-				WriteInt(&b, len(data), 3) // message length
-				WriteInt(&b, typeid, 1) // message type id
+				WriteInt(&b, 0x1<<6+csid, 1) // fmt=1 csid
+				WriteInt(&b, ts, 3)          // tsdelta
+				WriteInt(&b, len(data), 3)   // message length
+				WriteInt(&b, typeid, 1)      // message type id
 			}
 		} else {
 			WriteBuf(&b, []byte{0x3<<6 + byte(csid)}) // fmt=3, csid
 		}
 		size := 128
-		if len(data) - start < size {
+		if len(data)-start < size {
 			size = len(data) - start
 		}
 		WriteBuf(&b, data[start:start+size])
@@ -207,7 +205,7 @@ func (r *MsgStream) WriteAAC(strid, ts int, data []byte) {
 	r.WriteMsg(0, 7, MSG_AUDIO, strid, ts, d)
 }
 
-func (r *MsgStream) WriteVideo(strid,ts int, key bool, data []byte) {
+func (r *MsgStream) WriteVideo(strid, ts int, key bool, data []byte) {
 	var b int
 	if key {
 		b = 0x17
@@ -297,4 +295,3 @@ func (r *MsgStream) ReadMsg() *Msg {
 
 	return nil
 }
-

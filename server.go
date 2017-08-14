@@ -1,29 +1,28 @@
-
 package rtmp
 
 import (
-	"bytes"
-	"net"
-	"fmt"
-	"reflect"
-	"io/ioutil"
-	"os"
 	"bufio"
+	"bytes"
+	"fmt"
+	"io/ioutil"
 	"log"
-	"time"
-	"strings"
+	"net"
+	"os"
+	"reflect"
 	_ "runtime/debug"
+	"strings"
+	"time"
 )
 
 var (
-	event = make(chan eventS, 0)
+	event     = make(chan eventS, 0)
 	eventDone = make(chan int, 0)
 )
 
 type eventS struct {
 	id int
 	mr *MsgStream
-	m *Msg
+	m  *Msg
 }
 
 type eventID int
@@ -79,21 +78,21 @@ func handleConnect(mr *MsgStream, trans float64, app string) {
 	mr.WriteMsg32(2, MSG_BANDWIDTH, 0, 5000000)
 	mr.WriteMsg32(2, MSG_CHUNK_SIZE, 0, 128)
 
-	mr.WriteAMFCmd(3, 0, []AMFObj {
-		AMFObj { atype : AMF_STRING, str : "_result", },
-		AMFObj { atype : AMF_NUMBER, f64 : trans, },
-		AMFObj { atype : AMF_OBJECT,
-			obj : map[string] AMFObj {
-				"fmtVer" : AMFObj { atype : AMF_STRING, str : "FMS/3,0,1,123", },
-				"capabilities" : AMFObj { atype : AMF_NUMBER, f64 : 31, },
+	mr.WriteAMFCmd(3, 0, []AMFObj{
+		AMFObj{atype: AMF_STRING, str: "_result"},
+		AMFObj{atype: AMF_NUMBER, f64: trans},
+		AMFObj{atype: AMF_OBJECT,
+			obj: map[string]AMFObj{
+				"fmtVer":       AMFObj{atype: AMF_STRING, str: "FMS/3,0,1,123"},
+				"capabilities": AMFObj{atype: AMF_NUMBER, f64: 31},
 			},
 		},
-		AMFObj { atype : AMF_OBJECT,
-			obj : map[string] AMFObj {
-				"level" : AMFObj { atype : AMF_STRING, str : "status", },
-				"code" : AMFObj { atype : AMF_STRING, str : "NetConnection.Connect.Success", },
-				"description" : AMFObj { atype : AMF_STRING, str : "Connection Success.", },
-				"objectEncoding" : AMFObj { atype : AMF_NUMBER, f64 : 0, },
+		AMFObj{atype: AMF_OBJECT,
+			obj: map[string]AMFObj{
+				"level":          AMFObj{atype: AMF_STRING, str: "status"},
+				"code":           AMFObj{atype: AMF_STRING, str: "NetConnection.Connect.Success"},
+				"description":    AMFObj{atype: AMF_STRING, str: "Connection Success."},
+				"objectEncoding": AMFObj{atype: AMF_NUMBER, f64: 0},
 			},
 		},
 	})
@@ -112,11 +111,11 @@ func handleCreateStream(mr *MsgStream, trans float64) {
 
 	l.Printf("stream %v: createStream", mr)
 
-	mr.WriteAMFCmd(3, 0, []AMFObj {
-		AMFObj { atype : AMF_STRING, str : "_result", },
-		AMFObj { atype : AMF_NUMBER, f64 : trans, },
-		AMFObj { atype : AMF_NULL, },
-		AMFObj { atype : AMF_NUMBER, f64 : 1 },
+	mr.WriteAMFCmd(3, 0, []AMFObj{
+		AMFObj{atype: AMF_STRING, str: "_result"},
+		AMFObj{atype: AMF_NUMBER, f64: trans},
+		AMFObj{atype: AMF_NULL},
+		AMFObj{atype: AMF_NUMBER, f64: 1},
 	})
 }
 
@@ -127,32 +126,32 @@ func handlePublish(mr *MsgStream) {
 
 	l.Printf("stream %v: publish", mr)
 
-	mr.WriteAMFCmd(3, 0, []AMFObj {
-		AMFObj { atype : AMF_STRING, str : "onStatus", },
-		AMFObj { atype : AMF_NUMBER, f64 : 0, },
-		AMFObj { atype : AMF_NULL, },
-		AMFObj { atype : AMF_OBJECT,
-			obj : map[string] AMFObj {
-				"level" : AMFObj { atype : AMF_STRING, str : "status", },
-				"code" : AMFObj { atype : AMF_STRING, str : "NetStream.Publish.Start", },
-				"description" : AMFObj { atype : AMF_STRING, str : "Start publising.", },
+	mr.WriteAMFCmd(3, 0, []AMFObj{
+		AMFObj{atype: AMF_STRING, str: "onStatus"},
+		AMFObj{atype: AMF_NUMBER, f64: 0},
+		AMFObj{atype: AMF_NULL},
+		AMFObj{atype: AMF_OBJECT,
+			obj: map[string]AMFObj{
+				"level":       AMFObj{atype: AMF_STRING, str: "status"},
+				"code":        AMFObj{atype: AMF_STRING, str: "NetStream.Publish.Start"},
+				"description": AMFObj{atype: AMF_STRING, str: "Start publising."},
 			},
 		},
 	})
 
-	event <- eventS{id:E_PUBLISH, mr:mr}
+	event <- eventS{id: E_PUBLISH, mr: mr}
 	<-eventDone
 }
 
 type testsrc struct {
-	r *bufio.Reader
-	dir string
-	w,h int
-	ts int
+	r     *bufio.Reader
+	dir   string
+	w, h  int
+	ts    int
 	codec string
-	key bool
-	idx int
-	data []byte
+	key   bool
+	idx   int
+	data  []byte
 }
 
 func tsrcNew() (m *testsrc) {
@@ -192,7 +191,7 @@ func handlePlay(mr *MsgStream, strid int) {
 	//tsrc = tsrcNew()
 
 	if tsrc == nil {
-		event <- eventS{id:E_PLAY, mr:mr}
+		event <- eventS{id: E_PLAY, mr: mr}
 		<-eventDone
 	} else {
 		l.Printf("stream %v: test play data in %s", mr, tsrc.dir)
@@ -201,61 +200,61 @@ func handlePlay(mr *MsgStream, strid int) {
 		l.Printf("stream %v: test video %dx%d", mr, mr.W, mr.H)
 	}
 
-	begin := func () {
+	begin := func() {
 
 		var b bytes.Buffer
 		WriteInt(&b, 0, 2)
 		WriteInt(&b, strid, 4)
 		mr.WriteMsg(0, 2, MSG_USER, 0, 0, b.Bytes()) // stream begin 1
 
-		mr.WriteAMFCmd(5, strid, []AMFObj {
-			AMFObj { atype : AMF_STRING, str : "onStatus", },
-			AMFObj { atype : AMF_NUMBER, f64 : 0, },
-			AMFObj { atype : AMF_NULL, },
-			AMFObj { atype : AMF_OBJECT,
-				obj : map[string] AMFObj {
-					"level" : AMFObj { atype : AMF_STRING, str : "status", },
-					"code" : AMFObj { atype : AMF_STRING, str : "NetStream.Play.Start", },
-					"description" : AMFObj { atype : AMF_STRING, str : "Start live.", },
+		mr.WriteAMFCmd(5, strid, []AMFObj{
+			AMFObj{atype: AMF_STRING, str: "onStatus"},
+			AMFObj{atype: AMF_NUMBER, f64: 0},
+			AMFObj{atype: AMF_NULL},
+			AMFObj{atype: AMF_OBJECT,
+				obj: map[string]AMFObj{
+					"level":       AMFObj{atype: AMF_STRING, str: "status"},
+					"code":        AMFObj{atype: AMF_STRING, str: "NetStream.Play.Start"},
+					"description": AMFObj{atype: AMF_STRING, str: "Start live."},
 				},
 			},
 		})
 
 		l.Printf("stream %v: begin: video %dx%d", mr, mr.W, mr.H)
 
-		mr.WriteAMFMeta(5, strid, []AMFObj {
-			AMFObj { atype : AMF_STRING, str : "|RtmpSampleAccess", },
-			AMFObj { atype : AMF_BOOLEAN, i: 1, },
-			AMFObj { atype : AMF_BOOLEAN, i: 1, },
+		mr.WriteAMFMeta(5, strid, []AMFObj{
+			AMFObj{atype: AMF_STRING, str: "|RtmpSampleAccess"},
+			AMFObj{atype: AMF_BOOLEAN, i: 1},
+			AMFObj{atype: AMF_BOOLEAN, i: 1},
 		})
 
-		mr.meta.obj["Server"] = AMFObj { atype : AMF_STRING, str : "Golang Rtmp Server", }
+		mr.meta.obj["Server"] = AMFObj{atype: AMF_STRING, str: "Golang Rtmp Server"}
 		mr.meta.atype = AMF_OBJECT
 		l.Printf("stream %v: %v", mr, mr.meta)
-		mr.WriteAMFMeta(5, strid, []AMFObj {
-			AMFObj { atype : AMF_STRING, str : "onMetaData", },
+		mr.WriteAMFMeta(5, strid, []AMFObj{
+			AMFObj{atype: AMF_STRING, str: "onMetaData"},
 			mr.meta,
 			/*
-			AMFObj { atype : AMF_OBJECT,
-				obj : map[string] AMFObj {
-					"Server" : AMFObj { atype : AMF_STRING, str : "Golang Rtmp Server", },
-					"width" : AMFObj { atype : AMF_NUMBER, f64 : float64(mr.W), },
-					"height" : AMFObj { atype : AMF_NUMBER, f64 : float64(mr.H), },
-					"displayWidth" : AMFObj { atype : AMF_NUMBER, f64 : float64(mr.W), },
-					"displayHeight" : AMFObj { atype : AMF_NUMBER, f64 : float64(mr.H), },
-					"duration" : AMFObj { atype : AMF_NUMBER, f64 : 0, },
-					"framerate" : AMFObj { atype : AMF_NUMBER, f64 : 25000, },
-					"videodatarate" : AMFObj { atype : AMF_NUMBER, f64 : 731, },
-					"videocodecid" : AMFObj { atype : AMF_NUMBER, f64 : 7, },
-					"audiodatarate" : AMFObj { atype : AMF_NUMBER, f64 : 122, },
-					"audiocodecid" : AMFObj { atype : AMF_NUMBER, f64 : 10, },
+				AMFObj { atype : AMF_OBJECT,
+					obj : map[string] AMFObj {
+						"Server" : AMFObj { atype : AMF_STRING, str : "Golang Rtmp Server", },
+						"width" : AMFObj { atype : AMF_NUMBER, f64 : float64(mr.W), },
+						"height" : AMFObj { atype : AMF_NUMBER, f64 : float64(mr.H), },
+						"displayWidth" : AMFObj { atype : AMF_NUMBER, f64 : float64(mr.W), },
+						"displayHeight" : AMFObj { atype : AMF_NUMBER, f64 : float64(mr.H), },
+						"duration" : AMFObj { atype : AMF_NUMBER, f64 : 0, },
+						"framerate" : AMFObj { atype : AMF_NUMBER, f64 : 25000, },
+						"videodatarate" : AMFObj { atype : AMF_NUMBER, f64 : 731, },
+						"videocodecid" : AMFObj { atype : AMF_NUMBER, f64 : 7, },
+						"audiodatarate" : AMFObj { atype : AMF_NUMBER, f64 : 122, },
+						"audiocodecid" : AMFObj { atype : AMF_NUMBER, f64 : 10, },
+					},
 				},
-			},
 			*/
 		})
 	}
 
-	end := func () {
+	end := func() {
 
 		l.Printf("stream %v: end", mr)
 
@@ -264,15 +263,15 @@ func handlePlay(mr *MsgStream, strid int) {
 		WriteInt(&b, strid, 4)
 		mr.WriteMsg(0, 2, MSG_USER, 0, 0, b.Bytes()) // stream eof 1
 
-		mr.WriteAMFCmd(5, strid, []AMFObj {
-			AMFObj { atype : AMF_STRING, str : "onStatus", },
-			AMFObj { atype : AMF_NUMBER, f64 : 0, },
-			AMFObj { atype : AMF_NULL, },
-			AMFObj { atype : AMF_OBJECT,
-				obj : map[string] AMFObj {
-					"level" : AMFObj { atype : AMF_STRING, str : "status", },
-					"code" : AMFObj { atype : AMF_STRING, str : "NetStream.Play.Stop", },
-					"description" : AMFObj { atype : AMF_STRING, str : "Stop live.", },
+		mr.WriteAMFCmd(5, strid, []AMFObj{
+			AMFObj{atype: AMF_STRING, str: "onStatus"},
+			AMFObj{atype: AMF_NUMBER, f64: 0},
+			AMFObj{atype: AMF_NULL},
+			AMFObj{atype: AMF_OBJECT,
+				obj: map[string]AMFObj{
+					"level":       AMFObj{atype: AMF_STRING, str: "status"},
+					"code":        AMFObj{atype: AMF_STRING, str: "NetStream.Play.Stop"},
+					"description": AMFObj{atype: AMF_STRING, str: "Stop live."},
 				},
 			},
 		})
@@ -341,7 +340,7 @@ func handlePlay(mr *MsgStream, strid int) {
 			dur := time.Since(starttm).Nanoseconds()
 			diff := tsrc.ts - 1000 - int(dur/1000000)
 			if diff > 0 {
-				time.Sleep(time.Duration(diff)*time.Millisecond)
+				time.Sleep(time.Duration(diff) * time.Millisecond)
 			}
 			l.Printf("data %v: ts %v dur %v diff %v", mr, tsrc.ts, int(dur/1000000), diff)
 			ll.Printf("#%d %d,%s,%d %d", k, tsrc.ts, tsrc.codec, tsrc.idx, len(tsrc.data))
@@ -354,7 +353,7 @@ func serve(mr *MsgStream) {
 
 	defer func() {
 		if err := recover(); err != nil {
-			event <- eventS{id:E_CLOSE, mr:mr}
+			event <- eventS{id: E_CLOSE, mr: mr}
 			<-eventDone
 			l.Printf("stream %v: closed %v", mr, err)
 			//if err != "EOF" {
@@ -365,8 +364,8 @@ func serve(mr *MsgStream) {
 
 	handShake(mr.r)
 
-//	f, _ := os.Create("/tmp/pub.log")
-//	mr.l = log.New(f, "", 0)
+	//	f, _ := os.Create("/tmp/pub.log")
+	//	mr.l = log.New(f, "", 0)
 
 	for {
 		m := mr.ReadMsg()
@@ -377,8 +376,8 @@ func serve(mr *MsgStream) {
 		//l.Printf("stream %v: msg %v", mr, m)
 
 		if m.typeid == MSG_AUDIO || m.typeid == MSG_VIDEO {
-//			mr.l.Printf("%d,%d", m.typeid, m.data.Len())
-			event <- eventS{id:E_DATA, mr:mr, m:m}
+			//			mr.l.Printf("%d,%d", m.typeid, m.data.Len())
+			event <- eventS{id: E_DATA, mr: mr, m: m}
 			<-eventDone
 		}
 
@@ -509,12 +508,11 @@ func SimpleServer() {
 			l.Printf("server: error: sock accept %s\n", err)
 			break
 		}
-		go func (c net.Conn) {
+		go func(c net.Conn) {
 			mr := NewMsgStream(c)
-			event <- eventS{id:E_NEW, mr:mr}
+			event <- eventS{id: E_NEW, mr: mr}
 			<-eventDone
 			serve(mr)
-		} (c)
+		}(c)
 	}
 }
-
