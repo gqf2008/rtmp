@@ -1,11 +1,10 @@
-
 package rtmp
 
 import (
-	"io"
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
-	"bytes"
+	"io"
 	"math/rand"
 )
 
@@ -20,20 +19,24 @@ var (
 		0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE,
 	}
 	serverKey = []byte{
-    'G', 'e', 'n', 'u', 'i', 'n', 'e', ' ', 'A', 'd', 'o', 'b', 'e', ' ',
-    'F', 'l', 'a', 's', 'h', ' ', 'M', 'e', 'd', 'i', 'a', ' ',
-    'S', 'e', 'r', 'v', 'e', 'r', ' ',
-    '0', '0', '1',
+		'G', 'e', 'n', 'u', 'i', 'n', 'e', ' ', 'A', 'd', 'o', 'b', 'e', ' ',
+		'F', 'l', 'a', 's', 'h', ' ', 'M', 'e', 'd', 'i', 'a', ' ',
+		'S', 'e', 'r', 'v', 'e', 'r', ' ',
+		'0', '0', '1',
 
-    0xF0, 0xEE, 0xC2, 0x4A, 0x80, 0x68, 0xBE, 0xE8, 0x2E, 0x00, 0xD0, 0xD1,
-    0x02, 0x9E, 0x7E, 0x57, 0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB,
-    0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE,
+		0xF0, 0xEE, 0xC2, 0x4A, 0x80, 0x68, 0xBE, 0xE8, 0x2E, 0x00, 0xD0, 0xD1,
+		0x02, 0x9E, 0x7E, 0x57, 0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB,
+		0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE,
 	}
-	clientKey2 = clientKey[:30]
-	serverKey2 = serverKey[:36]
+	clientKey2    = clientKey[:30]
+	serverKey2    = serverKey[:36]
 	serverVersion = []byte{
-    0x0D, 0x0E, 0x0A, 0x0D,
+		0x0D, 0x0E, 0x0A, 0x0D,
 	}
+	zero = []byte{
+		0x00, 0x00, 0x00, 0x00,
+	}
+	s2 []byte
 )
 
 func makeDigest(key []byte, src []byte, skip int) (dst []byte) {
@@ -42,7 +45,7 @@ func makeDigest(key []byte, src []byte, skip int) (dst []byte) {
 		if skip != 0 {
 			h.Write(src[:skip])
 		}
-		if len(src) != skip + 32 {
+		if len(src) != skip+32 {
 			h.Write(src[skip+32:])
 		}
 	} else {
@@ -51,16 +54,16 @@ func makeDigest(key []byte, src []byte, skip int) (dst []byte) {
 	return h.Sum(nil)
 }
 
-func findDigest(b []byte, key []byte, base int) (int) {
+func findDigest(b []byte, key []byte, base int) int {
 	offs := 0
 	for n := 0; n < 4; n++ {
-		offs += int(b[base + n])
+		offs += int(b[base+n])
 	}
 	offs = (offs % 728) + base + 4
-//	fmt.Printf("offs %v\n", offs)
+	//	fmt.Printf("offs %v\n", offs)
 	dig := makeDigest(key, b, offs)
-//	fmt.Printf("digest %v\n", digest)
-//	fmt.Printf("p %v\n", b[offs:offs+32])
+	//	fmt.Printf("digest %v\n", digest)
+	//	fmt.Printf("p %v\n", b[offs:offs+32])
 	if bytes.Compare(b[offs:offs+32], dig) != 0 {
 		offs = -1
 	}
@@ -70,7 +73,7 @@ func findDigest(b []byte, key []byte, base int) (int) {
 func writeDigest(b []byte, key []byte, base int) {
 	offs := 0
 	for n := 8; n < 12; n++ {
-		offs += int(b[base + n])
+		offs += int(b[base+n])
 	}
 	offs = (offs % 728) + base + 12
 
@@ -78,13 +81,22 @@ func writeDigest(b []byte, key []byte, base int) {
 	copy(b[offs:], dig)
 }
 
-func createChal(b []byte, ver []byte, key []byte) {
+func createChal(b []byte, ver []byte, key []byte, complexHandshake bool) {
 	b[0] = 3
-	copy(b[5:9], ver)
+	if complexHandshake {
+		copy(b[5:9], ver)
+	} else {
+		copy(b[1:5], zero)
+		copy(b[5:9], zero)
+	}
+
 	for i := 9; i < 1537; i++ {
 		b[i] = byte(rand.Int() % 256)
 	}
-	writeDigest(b[1:], key, 0)
+
+	if complexHandshake {
+		writeDigest(b[1:], key, 0)
+	}
 }
 
 func createResp(b []byte, key []byte) {
@@ -121,25 +133,44 @@ func parseChal(b []byte, peerKey []byte, key []byte) (dig []byte, err int) {
 	return
 }
 
-
 func handShake(rw io.ReadWriter) {
+	// this is complex handshake, if complex handshake failed, we should support simple handshake
+	complexHandshake := true
+	// read c0 + c1
 	b := ReadBuf(rw, 1537)
 	l.Printf("handshake: got client chal")
 	dig, err := parseChal(b, clientKey2, serverKey)
 	if err != 0 {
-		return
+		complexHandshake = false
 	}
 
-	createChal(b, serverVersion, serverKey2)
+	if complexHandshake {
+		l.Printf("handshake: complex")
+	} else {
+		l.Printf("handshake: simple")
+		s2 = make([]byte, 1536)
+		//copy c1 to s2
+		copy(s2, b[1:1537])
+	}
+
+	// send s0 + s1
+	createChal(b, serverVersion, serverKey2, complexHandshake)
 	l.Printf("handshake: send server chal")
 	rw.Write(b)
 
-	b = make([]byte, 1536)
-	createResp(b, dig)
-	l.Printf("handshake: send server resp")
-	rw.Write(b)
+	if complexHandshake {
+		// send s2
+		b = make([]byte, 1536)
+		createResp(b, dig)
+		l.Printf("handshake: send server resp")
+		rw.Write(b)
+	} else {
+		// s2 is the same with c1
+		l.Printf("handshake: send server resp")
+		rw.Write(s2)
+	}
 
+	// read c2
 	b = ReadBuf(rw, 1536)
 	l.Printf("handshake: got client resp")
 }
-
