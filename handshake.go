@@ -149,6 +149,7 @@ func handShake(rw io.ReadWriter) {
 	} else {
 		l.Printf("handshake: simple")
 		s2 = make([]byte, 1536)
+		//copy c1 to s2
 		copy(s2, b[1:1537])
 	}
 
