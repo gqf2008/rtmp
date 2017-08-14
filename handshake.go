@@ -33,6 +33,10 @@ var (
 	serverVersion = []byte{
 		0x0D, 0x0E, 0x0A, 0x0D,
 	}
+	zero = []byte{
+		0x00, 0x00, 0x00, 0x00,
+	}
+	s2 []byte
 )
 
 func makeDigest(key []byte, src []byte, skip int) (dst []byte) {
@@ -79,7 +83,13 @@ func writeDigest(b []byte, key []byte, base int) {
 
 func createChal(b []byte, ver []byte, key []byte, complexHandshake bool) {
 	b[0] = 3
-	copy(b[5:9], ver)
+	if complexHandshake {
+		copy(b[5:9], ver)
+	} else {
+		copy(b[1:5], zero)
+		copy(b[5:9], zero)
+	}
+
 	for i := 9; i < 1537; i++ {
 		b[i] = byte(rand.Int() % 256)
 	}
@@ -132,12 +142,14 @@ func handShake(rw io.ReadWriter) {
 	dig, err := parseChal(b, clientKey2, serverKey)
 	if err != 0 {
 		complexHandshake = false
-		if complexHandshake {
-			l.Printf("handshake: complex")
-		} else {
-			l.Printf("handshake: simple")
-		}
-		//return
+	}
+
+	if complexHandshake {
+		l.Printf("handshake: complex")
+	} else {
+		l.Printf("handshake: simple")
+		s2 = make([]byte, 1536)
+		copy(s2, b[1:1537])
 	}
 
 	// send s0 + s1
@@ -152,9 +164,9 @@ func handShake(rw io.ReadWriter) {
 		l.Printf("handshake: send server resp")
 		rw.Write(b)
 	} else {
-		// s2 is the same with s1
+		// s2 is the same with c1
 		l.Printf("handshake: send server resp")
-		rw.Write(b)
+		rw.Write(s2)
 	}
 
 	// read c2
